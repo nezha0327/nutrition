@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>综合食品营养看板</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> 
+    <style>
+        .dashboard {
+            max-width: 1400px;
+            margin: 20px auto;
+            padding: 20px;
+            background: #f8f9fa;
+            font-family: "微软雅黑";
+        }
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+            padding: 15px;
+        }
+        .chart-card {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            padding: 15px;
+            transition: transform 0.3s;
+        }
+        .chart-card:hover {
+            transform: translateY(-5px);
+        }
+        h2 {
+            color: #2c3e50;
+            text-align: center;
+            margin: 25px 0;
+            font-size: 2.2em;
+        }
+        @media (max-width: 768px) {
+            .grid-container {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="dashboard">
+        <h2>综合食品营养成分分析看板</h2>
+        <div class="grid-container" id="nutritionCharts"></div>
+    </div>
+ 
+<script>
+// 合并后的营养数据（单位：g/100g）
+const nutritionData = {
+    /* 蔬果类 */
+    "苹果":   [13.8, 0.2, 0.3, 2.4, 0.5, 0.2],
+    "香蕉":   [22.0, 0.2, 1.1, 2.6, 0.4, 0.5],
+    "橙子":   [11.8, 0.2, 0.8, 2.4, 0.6, 0.3],
+    "菠萝":   [10.5, 0.1, 0.5, 1.4, 0.5, 0.2],
+    "土豆":   [17.5, 0.1, 2.0, 2.2, 0.8, 0.6],
+    "洋葱":   [9.3,  0.1, 1.1, 1.7, 0.4, 0.3],
+    "白菜":   [3.2,  0.1, 1.5, 1.0, 0.5, 0.2],
+    "黄瓜":   [3.6,  0.2, 0.8, 0.5, 0.3, 0.2],
+    "胡萝卜": [9.6,  0.2, 1.0, 2.8, 0.7, 0.4],
+    "西兰花": [6.6,  0.4, 3.0, 2.6, 1.1, 0.5],
+    "番茄":   [3.9,  0.2, 0.9, 1.2, 0.6, 0.3],
+    "菠菜":   [3.6,  0.3, 2.9, 2.2, 0.9, 0.5],
+    "生菜":   [2.9,  0.2, 1.4, 1.1, 0.4, 0.2],
+    "油麦菜": [2.1,  0.3, 1.4, 1.2, 0.5, 0.3],
+    "芥兰":   [4.1,  0.4, 2.8, 1.6, 0.8, 0.4],
+    "鸡翅":    [4.6, 11.8, 17.4, 0.0, 0.8, 0.9],  // 数据来源[1]()[5]()
+    "培根":    [1.3, 42.0, 12.6, 0.0, 0.5, 1.2],
+    "鸡蛋":    [1.1, 11.0, 13.0, 0.0, 0.7, 1.1],  // 数据补充[5]()
+    "牛奶":    [4.8, 3.6, 3.4, 0.0, 0.4, 1.2],
+    "虾仁":    [0.2, 1.7, 16.0, 0.2, 0.3, 1.5],
+    "薯片":    [52.0, 35.0, 6.0, 4.3, 0.2, 0.8],
+    "巧克力":  [57.0, 31.0, 5.5, 5.8, 0.3, 1.4],  // 黑巧克力数据 
+    "每日坚果":[20.0, 35.0, 15.0, 8.0, 1.2, 2.5],
+    "曲奇饼干":[58.0, 24.0, 6.0, 1.5, 0.3, 0.7],
+    "冰淇淋":  [28.0, 11.0, 3.5, 0.0, 0.4, 0.6],
+    "大米":   [77.3, 0.5, 7.0, 0.8, 0.3, 0.5],  // 数据来源[5]()
+    "面粉":   [75.0, 1.2, 10.3, 2.3, 0.4, 0.8],  // 通用小麦粉[1]()
+    "麦片":   [66.0, 7.0, 13.0, 10.0, 0.6, 2.1], // 即食燕麦片[1]()
+    "可乐":   [10.6, 0.0, 0.0, 0.0, 0.0, 0.1],  // 碳酸饮料典型值 
+    "咖啡":   [2.5, 1.5, 0.8, 0.0, 0.2, 0.3],   // 即饮拿铁咖啡 
+    "果汁":   [11.2, 0.2, 0.5, 0.3, 0.9, 0.4],  // 橙汁(非浓缩)
+    "茶":     [0.0, 0.0, 0.1, 0.0, 0.1, 0.2]    // 无糖绿茶 
+    // ...其他食物数据按此格式继续添加 
+};
+ 
+// 统一颜色编码 
+const nutrientColors = {
+    碳水化合物: 'rgba(255, 159, 64, 0.8)',
+    脂肪:        'rgba(255, 99, 132, 0.8)',
+    蛋白质:      'rgba(54, 162, 235, 0.8)',
+    膳食纤维:    'rgba(75, 192, 192, 0.8)',
+    维生素:      'rgba(153, 102, 255, 0.8)',
+    矿物质:      'rgba(255, 206, 86, 0.8)'
+};
+ 
+// 优化后的图表生成函数 
+function createChartCard(foodName) {
+    const container = document.getElementById('nutritionCharts'); 
+    
+    const card = document.createElement('div'); 
+    card.className  = 'chart-card';
+    
+    const canvas = document.createElement('canvas'); 
+    const ctx = canvas.getContext('2d'); 
+    
+    // 渐进式渲染优化 
+    let animationFrame;
+    const renderChart = () => {
+        new Chart(ctx, {
+            type: 'pie',
+            data: {
+                labels: Object.keys(nutrientColors), 
+                datasets: [{
+                    data: nutritionData[foodName],
+                    backgroundColor: Object.values(nutrientColors), 
+                    borderWidth: 0 
+                }]
+            },
+            options: {
+                responsive: true,
+                animation: {
+                    duration: 800,
+                    easing: 'easeOutQuart'
+                },
+                plugins: {
+                    legend: { position: 'right' },
+                    tooltip: {
+                        callbacks: {
+                            label: (ctx) => `${ctx.label}:  ${ctx.raw}g  (${(ctx.raw*100/ctx.dataset.data.reduce((a,b)=>a+b)).toFixed(1)}%)` 
+                        }
+                    }
+                }
+            }
+        });
+        cancelAnimationFrame(animationFrame);
+    };
+    
+    const title = document.createElement('h3'); 
+    title.textContent  = foodName;
+    title.style.color  = '#2c3e50';
+    title.style.textAlign  = 'center';
+    
+    card.appendChild(title); 
+    card.appendChild(canvas); 
+    container.appendChild(card); 
+    
+    // 延迟加载优化 
+    animationFrame = requestAnimationFrame(renderChart);
+}
+ 
+// 分批渲染防止卡顿 
+const foods = Object.keys(nutritionData); 
+let index = 0;
+function batchRender() {
+    if(index < foods.length)  {
+        createChartCard(foods[index]);
+        index++;
+        setTimeout(batchRender, 100);
+    }
+}
+batchRender();
+</script>
+</body>
+</html>
